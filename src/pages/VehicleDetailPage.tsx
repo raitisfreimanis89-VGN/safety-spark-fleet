@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,79 +16,82 @@ import {
   getDOTInspections, addDOTInspection
 } from '@/lib/store';
 import { AXLE_CONFIG, type TyreReading, type TreadStatus } from '@/types/fleet';
+import type { Vehicle, Driver, MaintenanceRecord, BrakeTestRecord, TyreRecord, DOTInspectionRecord } from '@/types/fleet';
 import { CalendarIcon, ArrowLeft, Wrench, Shield, Circle, FileCheck } from 'lucide-react';
 
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const vehicles = getVehicles();
-  const vehicle = vehicles.find(v => v.id === id);
-  const drivers = getDrivers();
 
-  const [, setTick] = useState(0);
-  const refresh = () => setTick(t => t + 1);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+  const [brakeTests, setBrakeTests] = useState<BrakeTestRecord[]>([]);
+  const [tyreRecords, setTyreRecords] = useState<TyreRecord[]>([]);
+  const [dotInspections, setDotInspections] = useState<DOTInspectionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Maintenance form
   const [serviceDate, setServiceDate] = useState<Date>();
   const [serviceNotes, setServiceNotes] = useState('');
-
-  // Brake form
   const [brakeDate, setBrakeDate] = useState<Date>();
   const [brakeResult, setBrakeResult] = useState<'pass' | 'fail'>('pass');
   const [brakeNotes, setBrakeNotes] = useState('');
-
-  // Tyre form
   const [tyrePhotoDate, setTyrePhotoDate] = useState<Date>();
   const [tyreReadings, setTyreReadings] = useState<TyreReading[]>(() =>
-    AXLE_CONFIG.flatMap((axle, axleIndex) => {
-      const positions: ('left' | 'right')[] = ['left', 'right'];
-      return positions.map(pos => ({ axleIndex, position: pos, status: 'good' as TreadStatus }));
-    })
+    AXLE_CONFIG.flatMap((_, axleIndex) =>
+      (['left', 'right'] as const).map(pos => ({ axleIndex, position: pos, status: 'good' as TreadStatus }))
+    )
   );
-
-  // DOT form
   const [dotDate, setDotDate] = useState<Date>();
   const [dotDriver, setDotDriver] = useState('');
   const [dotResult, setDotResult] = useState<'pass' | 'violation' | 'oos'>('pass');
   const [dotNotes, setDotNotes] = useState('');
 
-  if (!vehicle) {
-    return <div className="p-6"><p>Vehicle not found.</p><Link to="/vehicles" className="text-primary underline">Back</Link></div>;
-  }
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+    const [vehicles, d, m, b, t, dot] = await Promise.all([
+      getVehicles(), getDrivers(),
+      getMaintenanceRecords(id), getBrakeTests(id), getTyreRecords(id), getDOTInspections(id)
+    ]);
+    setVehicle(vehicles.find(v => v.id === id) || null);
+    setDrivers(d);
+    setMaintenanceRecords(m.sort((a, b) => b.serviceDate.localeCompare(a.serviceDate)));
+    setBrakeTests(b.sort((a, b) => b.testDate.localeCompare(a.testDate)));
+    setTyreRecords(t.sort((a, b) => b.photoDate.localeCompare(a.photoDate)));
+    setDotInspections(dot.sort((a, b) => b.inspectionDate.localeCompare(a.inspectionDate)));
+    setLoading(false);
+  }, [id]);
 
-  const maintenanceRecords = getMaintenanceRecords(vehicle.id).sort((a, b) => b.serviceDate.localeCompare(a.serviceDate));
-  const brakeTests = getBrakeTests(vehicle.id).sort((a, b) => b.testDate.localeCompare(a.testDate));
-  const tyreRecords = getTyreRecords(vehicle.id).sort((a, b) => b.photoDate.localeCompare(a.photoDate));
-  const dotInspections = getDOTInspections(vehicle.id).sort((a, b) => b.inspectionDate.localeCompare(a.inspectionDate));
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleAddMaintenance = () => {
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Loading...</p>;
+  if (!vehicle) return <div className="p-6"><p>Vehicle not found.</p><Link to="/vehicles" className="text-primary underline">Back</Link></div>;
+
+  const handleAddMaintenance = async () => {
     if (!serviceDate) return;
-    addMaintenanceRecord(vehicle.id, serviceDate.toISOString(), serviceNotes || undefined);
-    setServiceDate(undefined);
-    setServiceNotes('');
-    refresh();
+    await addMaintenanceRecord(vehicle.id, serviceDate.toISOString(), serviceNotes || undefined);
+    setServiceDate(undefined); setServiceNotes('');
+    await fetchData();
   };
 
-  const handleAddBrake = () => {
+  const handleAddBrake = async () => {
     if (!brakeDate) return;
-    addBrakeTest(vehicle.id, brakeDate.toISOString(), brakeResult, brakeNotes || undefined);
-    setBrakeDate(undefined);
-    setBrakeNotes('');
-    refresh();
+    await addBrakeTest(vehicle.id, brakeDate.toISOString(), brakeResult, brakeNotes || undefined);
+    setBrakeDate(undefined); setBrakeNotes('');
+    await fetchData();
   };
 
-  const handleAddTyre = () => {
+  const handleAddTyre = async () => {
     if (!tyrePhotoDate) return;
-    addTyreRecord({ vehicleId: vehicle.id, date: new Date().toISOString(), photoDate: tyrePhotoDate.toISOString(), readings: tyreReadings });
+    await addTyreRecord({ vehicleId: vehicle.id, date: new Date().toISOString(), photoDate: tyrePhotoDate.toISOString(), readings: tyreReadings });
     setTyrePhotoDate(undefined);
-    refresh();
+    await fetchData();
   };
 
-  const handleAddDOT = () => {
+  const handleAddDOT = async () => {
     if (!dotDate) return;
-    addDOTInspection(vehicle.id, dotDriver || undefined, dotDate.toISOString(), dotResult, dotNotes || undefined);
-    setDotDate(undefined);
-    setDotNotes('');
-    refresh();
+    await addDOTInspection(vehicle.id, dotDriver || undefined, dotDate.toISOString(), dotResult, dotNotes || undefined);
+    setDotDate(undefined); setDotNotes('');
+    await fetchData();
   };
 
   const statusColors: Record<TreadStatus, string> = { good: 'bg-success', bad: 'bg-destructive', uneven: 'bg-warning' };
@@ -126,7 +129,6 @@ export default function VehicleDetailPage() {
           <TabsTrigger value="dot">DOT</TabsTrigger>
         </TabsList>
 
-        {/* MAINTENANCE TAB */}
         <TabsContent value="maintenance" className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-primary" />Record Service</CardTitle></CardHeader>
@@ -161,7 +163,6 @@ export default function VehicleDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* BRAKES TAB */}
         <TabsContent value="brakes" className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5 text-primary" />Record Brake Test</CardTitle></CardHeader>
@@ -185,9 +186,7 @@ export default function VehicleDetailPage() {
                   {brakeTests.map(r => (
                     <div key={r.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
                       <span>{format(parseISO(r.testDate), 'PP')}</span>
-                      <span className={r.result === 'pass' ? 'status-badge-green' : 'status-badge-red'}>
-                        {r.result.toUpperCase()}
-                      </span>
+                      <span className={r.result === 'pass' ? 'status-badge-green' : 'status-badge-red'}>{r.result.toUpperCase()}</span>
                     </div>
                   ))}
                 </div>
@@ -196,7 +195,6 @@ export default function VehicleDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* TYRES TAB */}
         <TabsContent value="tyres" className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Circle className="h-5 w-5 text-primary" />Record Tyre Check</CardTitle></CardHeader>
@@ -212,17 +210,10 @@ export default function VehicleDetailPage() {
                         return (
                           <div key={pos} className="flex items-center gap-2">
                             <span className="text-xs capitalize w-10">{pos}</span>
-                            <Select
-                              value={reading?.status || 'good'}
-                              onValueChange={(val: TreadStatus) => {
-                                setTyreReadings(prev => prev.map(r =>
-                                  r.axleIndex === axleIdx && r.position === pos ? { ...r, status: val } : r
-                                ));
-                              }}
-                            >
-                              <SelectTrigger className="h-8">
-                                <SelectValue />
-                              </SelectTrigger>
+                            <Select value={reading?.status || 'good'} onValueChange={(val: TreadStatus) => {
+                              setTyreReadings(prev => prev.map(r => r.axleIndex === axleIdx && r.position === pos ? { ...r, status: val } : r));
+                            }}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="good">✅ Good</SelectItem>
                                 <SelectItem value="bad">🔴 Bad</SelectItem>
@@ -269,7 +260,6 @@ export default function VehicleDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* DOT TAB */}
         <TabsContent value="dot" className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><FileCheck className="h-5 w-5 text-primary" />Record DOT Inspection</CardTitle></CardHeader>

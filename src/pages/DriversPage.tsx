@@ -1,24 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getDrivers, addDriver, deleteDriver } from '@/lib/store';
 import { Plus, Trash2, Users } from 'lucide-react';
+import type { Driver } from '@/types/fleet';
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState(getDrivers());
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const handleAdd = () => {
+  const fetchDrivers = async () => {
+    const data = await getDrivers();
+    setDrivers(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchDrivers(); }, []);
+
+  const handleAdd = async () => {
     if (!name.trim()) return;
-    addDriver(name.trim());
-    setDrivers(getDrivers());
+    await addDriver(name.trim());
+    await fetchDrivers();
     setName('');
   };
 
-  const handleDelete = (id: string) => {
-    deleteDriver(id);
-    setDrivers(getDrivers());
+  const handleDelete = async (id: string) => {
+    await deleteDriver(id);
+    await fetchDrivers();
   };
 
   return (
@@ -48,7 +58,9 @@ export default function DriversPage() {
           <CardTitle>All Drivers ({drivers.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {drivers.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : drivers.length === 0 ? (
             <p className="text-sm text-muted-foreground">No drivers added yet.</p>
           ) : (
             <div className="space-y-2">

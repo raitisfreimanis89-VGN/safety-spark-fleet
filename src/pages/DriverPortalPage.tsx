@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,21 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getVehicles, getDrivers, addTyreRecord, addMileageRecord } from '@/lib/store';
 import { AXLE_CONFIG, type TyreReading, type TreadStatus } from '@/types/fleet';
+import type { Vehicle, Driver } from '@/types/fleet';
 import { CalendarIcon, Camera, Gauge, CheckCircle } from 'lucide-react';
 
 export default function DriverPortalPage() {
-  const drivers = getDrivers();
-  const vehicles = getVehicles();
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const [d, v] = await Promise.all([getDrivers(), getVehicles()]);
+      setDrivers(d); setVehicles(v); setLoading(false);
+    };
+    load();
+  }, []);
 
   const [selectedDriver, setSelectedDriver] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState('');
@@ -29,25 +39,23 @@ export default function DriverPortalPage() {
 
   const statusColors: Record<TreadStatus, string> = { good: 'bg-success', bad: 'bg-destructive', uneven: 'bg-warning' };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedDriver || !selectedVehicle) return;
-
     if (mileage) {
-      addMileageRecord(selectedVehicle, selectedDriver, parseInt(mileage));
+      await addMileageRecord(selectedVehicle, selectedDriver, parseInt(mileage));
     }
     if (photoDate) {
-      addTyreRecord({
-        vehicleId: selectedVehicle,
-        date: new Date().toISOString(),
-        photoDate: photoDate.toISOString(),
-        readings: tyreReadings,
+      await addTyreRecord({
+        vehicleId: selectedVehicle, date: new Date().toISOString(),
+        photoDate: photoDate.toISOString(), readings: tyreReadings,
       });
     }
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
-    setMileage('');
-    setPhotoDate(undefined);
+    setMileage(''); setPhotoDate(undefined);
   };
+
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Loading...</p>;
 
   return (
     <div className="max-w-md mx-auto space-y-4">
@@ -74,13 +82,10 @@ export default function DriverPortalPage() {
               {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
             </SelectContent>
           </Select>
-
           <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
             <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
             <SelectContent>
-              {vehicles.map(v => (
-                <SelectItem key={v.id} value={v.id}>Truck #{v.truckNumber}</SelectItem>
-              ))}
+              {vehicles.map(v => <SelectItem key={v.id} value={v.id}>Truck #{v.truckNumber}</SelectItem>)}
             </SelectContent>
           </Select>
         </CardContent>
@@ -117,14 +122,9 @@ export default function DriverPortalPage() {
                   return (
                     <div key={pos} className="flex items-center gap-1">
                       <span className="text-[10px] w-6 capitalize">{pos}</span>
-                      <Select
-                        value={reading?.status || 'good'}
-                        onValueChange={(val: TreadStatus) => {
-                          setTyreReadings(prev => prev.map(r =>
-                            r.axleIndex === axleIdx && r.position === pos ? { ...r, status: val } : r
-                          ));
-                        }}
-                      >
+                      <Select value={reading?.status || 'good'} onValueChange={(val: TreadStatus) => {
+                        setTyreReadings(prev => prev.map(r => r.axleIndex === axleIdx && r.position === pos ? { ...r, status: val } : r));
+                      }}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="good">✅ Good</SelectItem>
