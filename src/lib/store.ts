@@ -110,9 +110,10 @@ export const getTyreRecords = async (vehicleId?: string): Promise<TyreRecord[]> 
 };
 
 export const addTyreRecord = async (record: Omit<TyreRecord, 'id'>) => {
-  const { data, error } = await supabase.from('tyre_records').insert({
-    vehicle_id: record.vehicleId, photo_date: record.photoDate, readings: record.readings as unknown as Record<string, unknown>,
-  }).select().single();
+  const insertData = {
+    vehicle_id: record.vehicleId, photo_date: record.photoDate, readings: JSON.parse(JSON.stringify(record.readings)),
+  };
+  const { data, error } = await supabase.from('tyre_records').insert(insertData).select().single();
   if (error) throw error;
   return data;
 };
