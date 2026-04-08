@@ -43,7 +43,7 @@ export const addVehicle = async (truckNumber: string, trailerNumber: string, ass
 };
 
 export const updateVehicle = async (id: string, updates: Partial<Vehicle>) => {
-  const mapped: Record<string, unknown> = {};
+  const mapped: { truck_number?: string; trailer_number?: string; assigned_driver_id?: string | null } = {};
   if (updates.truckNumber !== undefined) mapped.truck_number = updates.truckNumber;
   if (updates.trailerNumber !== undefined) mapped.trailer_number = updates.trailerNumber;
   if (updates.assignedDriverId !== undefined) mapped.assigned_driver_id = updates.assignedDriverId || null;
