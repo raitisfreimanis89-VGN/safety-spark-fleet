@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,27 +6,40 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getVehicles, addVehicle, deleteVehicle, getDrivers } from '@/lib/store';
 import { Plus, Trash2, Truck, ExternalLink } from 'lucide-react';
+import type { Vehicle, Driver } from '@/types/fleet';
 
 export default function VehiclesPage() {
-  const [vehicles, setVehicles] = useState(getVehicles());
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [truckNumber, setTruckNumber] = useState('');
   const [trailerNumber, setTrailerNumber] = useState('');
   const [assignedDriver, setAssignedDriver] = useState('');
-  const drivers = getDrivers();
+  const [loading, setLoading] = useState(true);
 
-  const handleAdd = () => {
+  const fetchData = async () => {
+    const [v, d] = await Promise.all([getVehicles(), getDrivers()]);
+    setVehicles(v);
+    setDrivers(d);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const handleAdd = async () => {
     if (!truckNumber.trim() || !trailerNumber.trim()) return;
-    addVehicle(truckNumber.trim(), trailerNumber.trim(), assignedDriver || undefined);
-    setVehicles(getVehicles());
+    await addVehicle(truckNumber.trim(), trailerNumber.trim(), assignedDriver || undefined);
+    await fetchData();
     setTruckNumber('');
     setTrailerNumber('');
     setAssignedDriver('');
   };
 
-  const handleDelete = (id: string) => {
-    deleteVehicle(id);
-    setVehicles(getVehicles());
+  const handleDelete = async (id: string) => {
+    await deleteVehicle(id);
+    await fetchData();
   };
+
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Loading...</p>;
 
   return (
     <div className="space-y-6">
