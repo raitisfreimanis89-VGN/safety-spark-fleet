@@ -28,7 +28,7 @@ export default function VehiclesPage() {
 
   const handleAdd = async () => {
     if (!truckNumber.trim() || !trailerNumber.trim()) return;
-    await addVehicle(truckNumber.trim(), trailerNumber.trim(), assignedDriver || undefined);
+    await addVehicle(truckNumber.trim(), trailerNumber.trim(), assignedDriver && assignedDriver !== 'none' ? assignedDriver : undefined);
     await fetchData();
     setTruckNumber('');
     setTrailerNumber('');
