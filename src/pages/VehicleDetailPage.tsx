@@ -115,11 +115,15 @@ export default function VehicleDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link to="/vehicles"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
-        <div>
-          <h2 className="text-2xl font-bold">Truck #{vehicle.truckNumber}</h2>
-          <p className="text-sm text-muted-foreground">Trailer #{vehicle.trailerNumber}</p>
-        </div>
-      </div>
+       <div>
+  <h2 className="text-2xl font-bold">Truck #{vehicle.truckNumber}</h2>
+  <p className="text-sm text-muted-foreground">Trailer #{vehicle.trailerNumber}</p>
+  {drivers.find(d => d.id === vehicle.assignedDriverId) && (
+    <p className="text-sm text-muted-foreground">
+      Driver: {drivers.find(d => d.id === vehicle.assignedDriverId)?.name}
+    </p>
+  )}
+</div>
 
       <Tabs defaultValue="maintenance">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
