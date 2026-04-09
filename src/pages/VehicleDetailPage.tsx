@@ -113,7 +113,7 @@ export default function VehicleDetailPage() {
 
   return (
     <div className="space-y-6">
-      </div> className="flex items-center gap-3">
+      </div className="flex items-center gap-3">
         <Link to="/vehicles"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4" /></Button></Link>
        <div>
   <h2 className="text-2xl font-bold">Truck #{vehicle.truckNumber}</h2>
