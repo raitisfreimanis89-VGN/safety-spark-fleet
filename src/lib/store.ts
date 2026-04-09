@@ -15,7 +15,7 @@ export const getDrivers = async (): Promise<Driver[]> => {
 export const addDriver = async (name: string): Promise<Driver> => {
   const { data, error } = await supabase.from('drivers').insert({ name, phone: phone || null }).select().single();
   if (error) throw error;
-  return { id: data.id, name: data.name, createdAt: data.created_at || '' };
+  return { id: data.id, name: data.name, phone: data.phone || undefined, createdAt: data.created_at || '' };
 };
 
 export const deleteDriver = async (id: string) => {
