@@ -9,7 +9,7 @@ import type {
 export const getDrivers = async (): Promise<Driver[]> => {
   const { data, error } = await supabase.from('drivers').select('*');
   if (error) { console.error('getDrivers', error); return []; }
-  return (data || []).map(d => ({ id: d.id, name: d.name, createdAt: d.created_at || '' }));
+  return (data || []).map(d => ({ id: d.id, name: d.name, phone: d.phone || undefined, createdAt: d.created_at || '' }));
 };
 
 export const addDriver = async (name: string): Promise<Driver> => {
