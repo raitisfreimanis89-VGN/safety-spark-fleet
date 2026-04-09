@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getDrivers, addDriver, deleteDriver } from '@/lib/store';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2, Users, Phone } from 'lucide-react';
 import type { Driver } from '@/types/fleet';
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
 
   const fetchDrivers = async () => {
@@ -21,9 +22,10 @@ export default function DriversPage() {
 
   const handleAdd = async () => {
     if (!name.trim()) return;
-    await addDriver(name.trim());
+    await addDriver(name.trim(), phone.trim() || undefined);
     await fetchDrivers();
     setName('');
+    setPhone('');
   };
 
   const handleDelete = async (id: string) => {
@@ -41,14 +43,22 @@ export default function DriversPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <Input
-              placeholder="Driver name"
+              placeholder="Driver name *"
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
-            <Button onClick={handleAdd}><Plus className="h-4 w-4 mr-1" />Add</Button>
+            <Input
+              placeholder="Cell number (optional)"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            />
+            <Button onClick={handleAdd} disabled={!name.trim()}>
+              <Plus className="h-4 w-4 mr-1" />Add Driver
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -66,7 +76,14 @@ export default function DriversPage() {
             <div className="space-y-2">
               {drivers.map(d => (
                 <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                  <span className="font-medium">{d.name}</span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-medium">{d.name}</span>
+                    {d.phone && (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" />{d.phone}
+                      </span>
+                    )}
+                  </div>
                   <Button variant="ghost" size="sm" onClick={() => handleDelete(d.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
