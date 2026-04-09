@@ -124,6 +124,7 @@ export default function VehicleDetailPage() {
     </p>
   )}
 </div>
+    </div>
 
       <Tabs defaultValue="maintenance">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
